@@ -2,33 +2,32 @@
 
 import hashlib as hasher
 import datetime as date
-import projectq
-from projectq.ops import H, Measure
-from projectq import MainEngine
+import cirq
 
 # Define what a POQChamp block is
 class Block:
    
-  def __init__(self, index, timestamp, data, previous_hash, random_number):
+  def __init__(self, index, timestamp, data, previous_hash, result):
     self.index = index
     self.timestamp = timestamp
     self.data = data
     self.previous_hash = previous_hash
     self.hash = self.hash_block()
-    self.random_number = self.random_number()
+    self.result = result
   
-  def random_number(quantum_engine): 
-    quantum_engine = MainEngine()
-    qubit = quantum_engine.allocate_qubit()
-    H | qubit
-    Measure | qubit
-    random_number = int(qubit)
-    return random_number
-
-
+  def result(): 
+    qubit = cirq.GridQubit(0, 0)
+    circuit = cirq.Circuit.from_ops(
+      cirq.X(qubit)**0.5,  # Square root of NOT.
+      cirq.measure(qubit, key='m')  # Measurement.
+)
+    simulator = cirq.google.XmonSimulator()
+    result = simulator.run(circuit, repetitions=20)
+    return result
+ 
   def hash_block(self):
     sha = hasher.sha256()
-    sha.update(str(self.index).encode('utf-8') + str(self.timestamp).encode('utf-8') + str(self.data).encode('utf-8') + str(self.previous_hash).encode('utf-8') + str(self.random_number).encode('utf-8')) 
+    sha.update(str(self.index).encode('utf-8') + str(self.timestamp).encode('utf-8') + str(self.data).encode('utf-8') + str(self.previous_hash).encode('utf-8') + str(self.result).encode('utf-8')) 
     return sha.hexdigest()
 
 # Generate genesis block
@@ -43,8 +42,8 @@ def next_block(last_block):
   this_timestamp = date.datetime.now()
   this_data = str(this_index)
   this_hash = last_block.hash
-  this_random_number = last_block.random_number
-  return Block(this_index, this_timestamp, this_data, this_hash, this_random_number)
+  this_result = last_block.result
+  return Block(this_index, this_timestamp, this_data, this_hash, this_result)
 
 # Create the blockchain and add the genesis block
 blockchain = [create_genesis_block()]
@@ -62,4 +61,3 @@ for i in range(0, num_of_blocks_to_add):
   # Tell everyone about it!
   print ("Block #{} has been added to the blockchain!".format(block_to_add.index))
   print ("Hash: {}\n".format(block_to_add.hash)) 
-
